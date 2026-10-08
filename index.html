@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#009682">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%23009682%22/%3E%3C/svg%3E">
+<title>Stations-Check Lernfabrik</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one-column phone app, schaltschrank-artige Statuskarten, große Daumen-Buttons */
+:root{
+  --bg:#eef1ee; --panel:#ffffff; --ink:#18201b; --muted:#5d6a61; --line:#d3dad4;
+  --accent:#009682; --accent-ink:#ffffff; --accent-soft:#d9efe9;
+  --ok:#2f7d32; --ok-soft:#e1f1e0; --warn:#b26a00; --warn-soft:#fbecd3; --bad:#c0392b; --bad-soft:#f8e0dc;
+  --ph:#e4e9e5;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111613; --panel:#1a211d; --ink:#e7ede8; --muted:#9aa89e; --line:#2c3630;
+  --accent:#2bbfa8; --accent-ink:#06201b; --accent-soft:#163a33;
+  --ok:#6cc56f; --ok-soft:#1b3320; --warn:#f0a842; --warn-soft:#3a2a10; --bad:#f07b6c; --bad-soft:#3d1d19;
+  --ph:#222b26; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111613; --panel:#1a211d; --ink:#e7ede8; --muted:#9aa89e; --line:#2c3630;
+  --accent:#2bbfa8; --accent-ink:#06201b; --accent-soft:#163a33;
+  --ok:#6cc56f; --ok-soft:#1b3320; --warn:#f0a842; --warn-soft:#3a2a10; --bad:#f07b6c; --bad-soft:#3d1d19;
+  --ph:#222b26; color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+img{max-width:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.45;margin:0}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:14px 40px;display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.lamp{width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft);flex:none}
+.brand b{font-family:var(--f-display);font-size:22px;letter-spacing:.02em;text-transform:uppercase}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px}
+.tabs button{font:500 14px var(--f-body);border:0;background:none;color:var(--muted);padding:7px 12px;border-radius:7px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink)}
+h1,h2{font-family:var(--f-display);font-weight:700;text-wrap:balance;margin:0;line-height:1.1}
+h1{font-size:30px}
+h2{font-size:20px;letter-spacing:.02em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:15px}
+select{font:500 18px var(--f-body);padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.btn{font:600 19px var(--f-body);border-radius:12px;border:2px solid transparent;padding:16px 18px;cursor:pointer;width:100%;text-align:center;min-height:58px}
+.btn:focus-visible,.tabs button:focus-visible,.link:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.yes{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+.btn.no{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.btn.opt{background:var(--panel);color:var(--ink);border-color:var(--line);text-align:left}
+.btn.done{background:var(--accent);color:var(--accent-ink)}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.answers.list{grid-template-columns:1fr}
+.link{background:none;border:0;color:var(--muted);font:500 15px var(--f-body);cursor:pointer;padding:6px 0;text-decoration:underline;text-underline-offset:3px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.sections{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.sections span{height:6px;border-radius:3px;background:var(--line)}
+.sections span.on{background:var(--accent)}
+.sections span.done{background:var(--accent);opacity:.45}
+.photo{aspect-ratio:4/3;max-width:100%;border-radius:10px;background:var(--ph);border:1px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted);text-align:center;padding:12px;overflow:hidden}
+.photo img{width:100%;height:100%;object-fit:cover;border-radius:8px}
+.photo .tag{font-family:var(--f-mono);font-size:13px;background:var(--panel);border:1px solid var(--line);padding:3px 8px;border-radius:6px;color:var(--ink)}
+.q{font-size:22px;font-weight:600;line-height:1.3;margin:0;text-wrap:balance}
+.hint{color:var(--muted);margin:0;font-size:16px}
+.kind{font-family:var(--f-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:6px;align-self:flex-start}
+.kind.q{background:var(--accent-soft);color:var(--ink)}
+.kind.a{background:var(--warn-soft);color:var(--warn)}
+.kind.n{background:var(--bad-soft);color:var(--bad)}
+.result{border-width:2px}
+.result.ok{border-color:var(--ok);background:var(--ok-soft)}
+.result.tech{border-color:var(--bad);background:var(--bad-soft)}
+.result.dorian{border-color:var(--warn);background:var(--warn-soft)}
+.result h1{font-size:28px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:14px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
+.save{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .n{font-family:var(--f-display);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.kpi .l{font-size:14px;color:var(--muted)}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:15px}
+.bar .t{min-width:0}
+.bar .c{font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.bar .track{grid-column:1/-1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.bar .fill{height:100%;background:var(--accent);border-radius:4px}
+.bar.bad .fill{background:var(--bad)} .bar.warn .fill{background:var(--warn)} .bar.ok .fill{background:var(--ok)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.num{font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:13px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.empty{color:var(--muted);text-align:center;padding:18px 6px}
+.note{font-size:14px;color:var(--muted);margin:0}
+@media (prefers-reduced-motion:no-preference){.step{animation:in .18s ease-out}@keyframes in{from{transform:translateY(6px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="lamp" aria-hidden="true"></span><b>Stations-Check</b></div>
+    <nav class="tabs" aria-label="Ansicht">
+      <button id="tab-check" aria-pressed="true">Prüfen</button>
+      <button id="tab-stats" aria-pressed="false">Auswertung</button>
+    </nav>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script>
+/* ---------- Ablauf: jeder Knoten = ein Bildschirm ----------
+   type q = Frage, a = Handlung (Button "Erledigt"), n = Hinweis (Button "Weiter"), end = Ergebnis
+   img     = Bildnummer aus der Anleitung (wird später durch echtes Foto ersetzt)
+   AUSWERTUNG – gezählt wird nur, was sicher ist:
+   obsYes/obsNo/o.obs = Befund, den die Person direkt gesehen hat (z. B. "NUC-PC war aus")
+   fix     = Handlung, die nur zählt, wenn die nächste Kontrollfrage danach positiv ausfällt
+   confirm = Kontrollfrage: "Ja" bestätigt die offenen fix-Handlungen, "Nein" verwirft sie
+   reason  = bei Eskalation: was ungelöst blieb */
+const SECTIONS=["Beleuchtung","Stromversorgung","Monitor & PC","Docker & MES"];
+const FLOW={
+ LP:{s:0,type:"q",text:"Welche LED-Panels leuchten?",hint:"Schau auf das vordere und das obere Panel der Station.",img:"Bild 8, 9",opts:[
+   {l:"Beide",to:"FC",k:"yes"},
+   {l:"Nur vorne, oben aus",to:"TM1",obs:"Oberes LED-Panel aus"},
+   {l:"Nur oben, vorne aus",to:"FB"},
+   {l:"Keins",to:"E",k:"no"}]},
+ FC:{s:0,type:"q",text:"Leuchtet das vordere Panel in WBK-Grün?",img:"Bild WBK-Grün",yes:"C",no:"FC1",obsNo:"Panel-Farbe falsch eingestellt"},
+ FC1:{s:0,type:"a",text:"Farbe mit der Fernbedienung auf WBK-Grün einstellen.",hint:"Die Fernbedienung liegt im Büro von Fabian Hofsäß.",img:"Bild Fernbedienung",to:"C"},
+ TM1:{s:0,type:"n",text:"Bitte einen Techniker informieren.",hint:"Das obere Panel ist aus. Die Station funktioniert trotzdem, nur ohne Beleuchtung. Du kannst weiter prüfen.",to:"C",tech:true},
+ FB:{s:0,type:"a",text:"Fernbedienung aus dem Büro von Fabian Hofsäß holen und die LED-Panels 1–8 einschalten.",img:"Bild Fernbedienung",to:"FB2",fix:"Vorderes Panel war ausgeschaltet"},
+ FB2:{s:0,type:"q",text:"Leuchtet das vordere Panel jetzt?",yes:"FC",no:"TM2",confirm:true,obsNo:"Vorderes Panel lässt sich nicht einschalten"},
+ TM2:{s:0,type:"n",text:"Bitte einen Techniker informieren.",hint:"Die Station ist eventuell trotzdem nutzbar, wenn Monitor und PC angehen. Prüf weiter.",to:"C",tech:true},
+
+ E:{s:1,type:"q",text:"Ist der Notaus gedrückt?",img:"Bild 10",yes:"E1",no:"F",obsYes:"Notaus war gedrückt"},
+ E1:{s:1,type:"a",text:"Notaus durch Ziehen nach oben lösen.",img:"Bild 10",to:"F"},
+ F:{s:1,type:"q",text:"Vordere Tür durch Ziehen öffnen. Ist der Hauptschalter aus?",img:"Bild 11, 12",yes:"F1",no:"G",obsYes:"Hauptschalter war aus"},
+ F1:{s:1,type:"a",text:"Hauptschalter einschalten.",img:"Bild 12",to:"G"},
+ G:{s:1,type:"a",text:"Grünen Knopf oben rechts an der Arbeitsstation drücken.",img:"Bild grüner Knopf",to:"H"},
+ H:{s:1,type:"q",text:"Leuchtet die Kontroll-LED?",img:"Bild Kontroll-LED",yes:"M",no:"I",confirm:true,fallback:"Station war nur ausgeschaltet (grüner Knopf)",fallbackUnless:["Notaus war gedrückt","Hauptschalter war aus"]},
+ M:{s:1,type:"q",text:"Leuchtet die LED am Monitor?",img:"Bild 7",yes:"P",no:"I"},
+ I:{s:1,type:"q",text:"Was zeigt die Batterieanzeige hinter der vorderen Tür?",img:"Bild Batterieanzeige",opts:[
+   {l:"Smiley, 2 Pfeile bewegen sich",to:"TM3"},
+   {l:"Nur 1 Pfeil (Mitte → rechts)",to:"K"},
+   {l:"Anzeige aus oder etwas anderes",to:"TM3"}]},
+ K:{s:1,type:"a",text:"Die Station läuft im Batteriebetrieb. Netzkabel hinten an eine Steckdose anschließen.",img:"Bild Netzkabel",to:"L",fix:"Batteriebetrieb, Netzkabel fehlte"},
+ L:{s:1,type:"q",text:"Bewegt sich jetzt auch der 2. Pfeil (links → Mitte)?",img:"Bild Batterieanzeige",yes:"C",no:"TM4",confirm:true},
+
+ C:{s:2,type:"q",text:"Leuchtet die LED am Monitor?",img:"Bild 7",yes:"P",no:"B"},
+ B:{s:2,type:"a",text:"Power-Schalter am Monitor einmal drücken.",img:"Bild 7",to:"C2",fix:"Monitor war ausgeschaltet"},
+ C2:{s:2,type:"q",text:"Leuchtet die Monitor-LED jetzt?",img:"Bild 7",yes:"P",no:"TM5",confirm:true},
+ P:{s:2,type:"q",text:"Zeigt der Monitor ein normales Bild?",img:"Bild 6",yes:"LOG",no:"N"},
+ N:{s:2,type:"q",text:"Ist der NUC-PC an?",img:"Bild NUC-PC",yes:"HD",no:"N1",obsNo:"NUC-PC war aus"},
+ N1:{s:2,type:"a",text:"NUC-PC einschalten.",img:"Bild NUC-PC",to:"P"},
+ HD:{s:2,type:"a",text:"HDMI-Kabel an Monitor und NUC-PC prüfen und fest einstecken.",img:"Bild HDMI",to:"HB",fix:"HDMI-Kabel war lose"},
+ HB:{s:2,type:"q",text:"Ist jetzt ein Bild da?",yes:"LOG",no:"TM6",confirm:true},
+ LOG:{s:2,type:"a",text:"Monitor per Touch bedienen und mit dem Lernfabrik-Passwort anmelden.",img:"Bild Anmeldung",to:"R1"},
+
+ R1:{s:3,type:"a",text:"Einen Pol-Topf an den RFID-Reader halten.",img:"Bild RFID-Reader",to:"R2"},
+ R2:{s:3,type:"q",text:"Was leuchtet am RFID-Reader?",img:"Bild RFID-Reader",opts:[
+   {l:"Grün und Orange",to:"SL",k:"yes"},
+   {l:"Nur Grün",to:"DK1"},
+   {l:"Gar nichts",to:"IO",k:"no"}]},
+ SL:{s:3,type:"q",text:"Leuchtet das Smart-Light oben grün?",hint:"Der Pol-Topf muss dabei eingesteckt sein.",img:"Bild Smart-Light",yes:"MES",no:"DK1"},
+ DK1:{s:3,type:"q",text:"Am PC: Ist Docker automatisch gestartet?",img:"Bild Docker",yes:"DK3",no:"DK2",obsNo:"Docker nicht automatisch gestartet"},
+ DK2:{s:3,type:"a",text:"Docker als Administrator ausführen, die Admin-Abfrage bestätigen und kurz warten.",img:"Bild Docker Admin",to:"TA"},
+ TA:{s:3,type:"q",text:"Pol-Topf erneut anhalten: Leuchtet der RFID-Reader grün und orange?",img:"Bild RFID-Reader",yes:"SL",no:"DK3",confirm:true},
+ DK3:{s:3,type:"a",text:"In Docker auf den dunkelblauen Start-Pfeil drücken und warten.",img:"Bild Docker Start",to:"TB",fix:"Docker-Container war gestoppt"},
+ TB:{s:3,type:"q",text:"Pol-Topf erneut anhalten: Leuchtet der RFID-Reader grün und orange?",img:"Bild RFID-Reader",yes:"SL",no:"RS",confirm:true},
+ RS:{s:3,type:"a",text:"PC einmal neu starten und danach erneut anmelden.",to:"TC",fix:"PC-Neustart war nötig"},
+ TC:{s:3,type:"q",text:"Pol-Topf erneut anhalten: Leuchtet der RFID-Reader grün und orange?",img:"Bild RFID-Reader",yes:"SL",no:"DOR1",confirm:true},
+ IO:{s:3,type:"q",text:"Leuchtet der IO-Link-Master?",img:"Bild IO-Link-Master",yes:"KA",no:"TM7"},
+ KA:{s:3,type:"q",text:"Sind alle Kabel am IO-Link-Master eingesteckt?",img:"Bild IO-Link-Master",yes:"DOR2",no:"KA1",obsNo:"IO-Link-Kabel nicht gesteckt"},
+ KA1:{s:3,type:"a",text:"Kabel einstecken. Wenn die Position unklar ist, mit einer anderen Station vergleichen.",img:"Bild IO-Link-Kabel",to:"R1"},
+
+ MES:{type:"end",kind:"ok",title:"Station voll einsatzbereit",text:"Docker läuft. Browser öffnen und die MES-IP eingeben, dann ist das MES vollständig nutzbar."},
+ TM3:{type:"end",kind:"tech",title:"Techniker rufen",reason:"Station bekommt keinen Strom",text:"Die Station bekommt keinen Strom. Bitte Fabian Hofsäß oder die Elektrowerkstatt informieren."},
+ TM4:{type:"end",kind:"tech",title:"Techniker rufen",reason:"Station lädt nicht am Netz",text:"Die Station lädt nicht am Netz. Bitte Fabian Hofsäß oder die Elektrowerkstatt informieren."},
+ TM5:{type:"end",kind:"tech",title:"Techniker rufen",reason:"Monitor geht nicht an",text:"Der Monitor geht nicht an. Bitte Fabian Hofsäß oder die Elektrowerkstatt informieren."},
+ TM6:{type:"end",kind:"tech",title:"Techniker rufen",reason:"Kein Bild trotz PC und HDMI",text:"Kein Bild, obwohl PC an und HDMI gesteckt. Bitte Fabian Hofsäß oder die Elektrowerkstatt informieren."},
+ TM7:{type:"end",kind:"tech",title:"Techniker rufen",reason:"IO-Link-Master ohne Strom",text:"Der IO-Link-Master hat keinen Strom. Bitte Fabian Hofsäß oder die Elektrowerkstatt informieren."},
+ DOR1:{type:"end",kind:"dorian",title:"Dorian melden",reason:"Docker läuft auch nach PC-Neustart nicht",text:"Docker startet auch nach einem PC-Neustart nicht richtig."},
+ DOR2:{type:"end",kind:"dorian",title:"Dorian melden",reason:"RFID reagiert trotz gesteckter Kabel nicht",text:"RFID-Reader reagiert nicht, obwohl alle Kabel am IO-Link-Master stecken."}
+};
+
+/* Befunde aus dem gegangenen Weg ableiten */
+function computeFindings(hist){
+  const found=[];let pending=[];
+  for(const h of hist){const n=FLOW[h.id];
+    if(h.obs) found.push(h.obs);
+    if(n.type==="a"&&n.fix) pending.push(n.fix);
+    if(n.confirm&&h.pos===true){
+      if(pending.length) found.push(...pending);
+      else if(n.fallback&&!(n.fallbackUnless||[]).some(x=>found.includes(x))) found.push(n.fallback);
+      pending=[];
+    } else if(n.confirm&&h.pos===false){pending=[];}
+  }
+  return [...new Set(found)];
+}
+const START="LP";
+const CFG=window.CONFIG||{};
+const STATIONS=(CFG.STATIONS&&CFG.STATIONS.length)?CFG.STATIONS:["Station 1"];
+/* Fotos: Datei in den Ordner images/ legen, Name = Platzhalter-Text klein, ohne Umlaute.
+   "Bild 7" -> images/bild-7.jpg  ·  "Bild WBK-Grün" -> images/bild-wbk-gruen.jpg */
+function imgFile(label){return "images/"+label.toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")+".jpg"}
+const KIND_LABEL={ok:"Einsatzbereit",tech:"Techniker",dorian:"Dorian"};
+
+/* ---------- Speicher: geteilte Datenbank, sonst nur dieses Gerät ---------- */
+const LS="stationscheck.runs", LS_ST="stationscheck.station";
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+let sb=null;
+try{ if(CFG.SUPABASE_URL&&CFG.SUPABASE_KEY&&window.supabase) sb=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY,{auth:{persistSession:false}}); }catch(e){sb=null}
+const LS_Q="stationscheck.queue";
+function toRow(r){return {station:r.station,ts:r.ts,end_node:r.end,kind:r.kind,tech_note:r.techNote,findings:r.findings,unresolved:r.unresolved,path:r.path,duration_sec:r.durationSec}}
+function fromRow(x){return {station:x.station,ts:Number(x.ts),end:x.end_node,kind:x.kind,techNote:x.tech_note,findings:x.findings||[],unresolved:x.unresolved,path:x.path||[],durationSec:x.duration_sec}}
+async function insert(rows){const {error}=await sb.from("runs").insert(rows.map(toRow));if(error)throw error}
+/* Ergebnisse, die offline nicht gespeichert werden konnten, später nachreichen */
+async function flushQueue(){ if(!sb) return; const q=lsGet(LS_Q,[]); if(!q.length) return;
+  try{await insert(q);lsSet(LS_Q,[])}catch(e){} }
+async function saveRun(run){
+  const all=lsGet(LS,[]);all.push(run);lsSet(LS,all.slice(-1000));
+  if(!sb) return "local";
+  try{await insert([run]);flushQueue();return "shared"}
+  catch(e){const q=lsGet(LS_Q,[]);q.push(run);lsSet(LS_Q,q.slice(-500));return "queued"}
+}
+async function loadRuns(){
+  if(sb){try{const {data,error}=await sb.from("runs").select("*").order("ts",{ascending:false}).limit(2000);
+    if(error)throw error;return {runs:data.map(fromRow),src:"shared"}}catch(e){}}
+  return {runs:lsGet(LS,[]).slice().reverse(),src:"local"};
+}
+flushQueue();
+
+/* ---------- Zustand ---------- */
+const urlS=new URLSearchParams(location.search).get("s");
+const urlStation=urlS&&STATIONS[parseInt(urlS,10)-1];
+let savedSt=lsGet(LS_ST,STATIONS[0]); if(!STATIONS.includes(savedSt)) savedSt=STATIONS[0];
+const state={view:"check",station:urlStation||savedSt,node:null,history:[],started:0,saved:null};
+if(location.hash==="#auswertung") state.view="stats";
+const $view=document.getElementById("view");
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function setTab(v){state.view=v;
+  document.getElementById("tab-check").setAttribute("aria-pressed",v==="check");
+  document.getElementById("tab-stats").setAttribute("aria-pressed",v==="stats");
+  v==="stats"?renderStats():render();}
+document.getElementById("tab-check").onclick=()=>setTab("check");
+document.getElementById("tab-stats").onclick=()=>setTab("stats");
+
+function photo(n){ if(!n.img) return "";
+  return `<div class="photo"><img src="${esc(imgFile(n.img))}" alt="${esc(n.img)}" onerror="this.parentNode.innerHTML='<span class=&quot;tag&quot;>${esc(n.img)}</span><span>Foto folgt</span>'"></div>`;}
+
+function sectionBar(s){return `<div class="sections" aria-label="Abschnitt ${s+1} von 4">${SECTIONS.map((_,i)=>`<span class="${i<s?"done":i===s?"on":""}"></span>`).join("")}</div>`}
+
+function render(){
+  if(state.view!=="check")return;
+  if(!state.node){renderStart();return;}
+  const n=FLOW[state.node];
+  if(n.type==="end"){renderEnd(n);return;}
+  const kindTag=n.type==="q"?`<span class="kind q">Frage</span>`:n.type==="a"?`<span class="kind a">Handlung</span>`:`<span class="kind n">Hinweis</span>`;
+  let btns="";
+  if(n.type==="q"&&n.opts){btns=`<div class="answers list">${n.opts.map((o,i)=>`<button class="btn ${o.k||"opt"}" data-opt="${i}">${esc(o.l)}</button>`).join("")}</div>`}
+  else if(n.type==="q"){btns=`<div class="answers"><button class="btn yes" data-yn="yes">Ja</button><button class="btn no" data-yn="no">Nein</button></div>`}
+  else{btns=`<button class="btn done" data-next="1">${n.type==="a"?"Erledigt":"Verstanden, weiter"}</button>`}
+  $view.innerHTML=`<section class="card step">
+    <div class="row"><span class="eyebrow">${state.station} · ${n.s+1}/4 ${SECTIONS[n.s]}</span>${kindTag}</div>
+    ${sectionBar(n.s)}
+    ${photo(n)}
+    <p class="q">${esc(n.text)}</p>
+    ${n.hint?`<p class="hint">${esc(n.hint)}</p>`:""}
+    ${btns}
+    <div class="row"><button class="link" id="back">${state.history.length?"Zurück":"Abbrechen"}</button><span class="save">Schritt ${state.history.length+1}</span></div>
+  </section>`;
+  $view.querySelectorAll("[data-opt]").forEach(b=>b.onclick=()=>{const o=n.opts[+b.dataset.opt];go(o.to,o.l,{obs:o.obs})});
+  $view.querySelectorAll("[data-yn]").forEach(b=>b.onclick=()=>{const y=b.dataset.yn==="yes";go(y?n.yes:n.no,y?"Ja":"Nein",{obs:y?n.obsYes:n.obsNo,pos:y})});
+  $view.querySelectorAll("[data-next]").forEach(b=>b.onclick=()=>go(n.to,n.type==="a"?"Erledigt":"Weiter",{tech:n.tech}));
+  document.getElementById("back").onclick=back;
+}
+
+function go(to,answer,x){
+  state.history.push({id:state.node,answer,obs:x.obs||null,pos:x.pos===undefined?null:x.pos,tech:!!x.tech});
+  state.node=to; render(); if(FLOW[to].type==="end") finish(); window.scrollTo(0,0);
+}
+function back(){
+  if(!state.history.length){state.node=null;render();return;}
+  const h=state.history.pop();state.node=h.id;render();
+}
+
+async function finish(){
+  const n=FLOW[state.node];
+  const findings=computeFindings(state.history);
+  const run={station:state.station,ts:Date.now(),end:state.node,kind:n.kind,
+    techNote:state.history.some(h=>h.tech),findings,unresolved:n.reason||null,
+    path:state.history.map(h=>h.id+":"+h.answer),durationSec:Math.round((Date.now()-state.started)/1000)};
+  state.saved="saving"; renderEnd(n);
+  state.saved=await saveRun(run); if(state.view==="check"&&FLOW[state.node]===n) renderEnd(n);
+}
+
+function renderStart(){
+  $view.innerHTML=`<section class="card">
+    <span class="eyebrow">Lernfabrik · Funktionsprüfung</span>
+    <h1>Läuft die Station?</h1>
+    <p class="hint">Du wirst Schritt für Schritt durch die Prüfung geführt: Beleuchtung, Strom, Monitor und PC, Docker und MES. Antworte einfach mit den Buttons.</p>
+    <label class="f" for="st">${urlStation?"Station aus dem QR-Code":"Welche Station prüfst du?"}
+      <select id="st">${STATIONS.map(s=>`<option ${s===state.station?"selected":""}>${s}</option>`).join("")}</select></label>
+    <button class="btn primary" id="go">Prüfung starten</button>
+  </section>
+  <p class="note">Jede abgeschlossene Prüfung wird gespeichert, damit wir sehen, wo die Fehler am häufigsten liegen.</p>`;
+  document.getElementById("st").onchange=e=>{state.station=e.target.value;lsSet(LS_ST,state.station)};
+  document.getElementById("go").onclick=()=>{state.station=document.getElementById("st").value;lsSet(LS_ST,state.station);
+    state.node=START;state.history=[];state.started=Date.now();state.saved=null;render();};
+}
+
+function renderEnd(n){
+  const findings=computeFindings(state.history);
+  const tech=state.history.some(h=>h.tech);
+  const savedTxt=state.saved==="saving"?"Wird gespeichert …":state.saved==="shared"?"Ergebnis gespeichert":state.saved==="local"?"Ergebnis nur auf diesem Gerät gespeichert":state.saved==="queued"?"Kein Netz: Ergebnis wird beim nächsten Öffnen nachgereicht":"";
+  $view.innerHTML=`<section class="card result ${n.kind}">
+    <span class="eyebrow">${state.station} · Ergebnis</span>
+    <h1>${esc(n.title)}</h1>
+    <p class="hint" style="color:var(--ink)">${esc(n.text)}</p>
+    ${tech&&n.kind==="ok"?`<p class="hint" style="color:var(--ink)"><b>Offen:</b> Bitte trotzdem einen Techniker wegen der Beleuchtung informieren.</p>`:""}
+    ${findings.length?`<div><span class="eyebrow">Gefundene Ursachen</span><div class="chips" style="margin-top:6px">${findings.map(f=>`<span class="chip">${esc(f)}</span>`).join("")}</div></div>`:""}
+    <span class="save">${savedTxt}</span>
+  </section>
+  <button class="btn primary" id="again">Neue Prüfung</button>
+  <button class="link" id="back">Letzte Antwort ändern</button>`;
+  document.getElementById("again").onclick=()=>{state.node=null;state.history=[];render()};
+  document.getElementById("back").onclick=back;
+}
+
+/* ---------- Auswertung ---------- */
+function count(arr){const m=new Map();arr.forEach(x=>m.set(x,(m.get(x)||0)+1));return [...m.entries()].sort((a,b)=>b[1]-a[1])}
+function bars(entries,total,cls){ if(!entries.length) return `<p class="empty">Noch keine Daten</p>`;
+  return `<div class="bars">${entries.map(([k,v])=>`<div class="bar ${cls?cls(k):""}"><span class="t">${esc(k)}</span><span class="c">${v} · ${Math.round(v/total*100)}%</span><div class="track"><div class="fill" style="width:${Math.max(3,v/total*100)}%"></div></div></div>`).join("")}</div>`}
+
+async function renderStats(){
+  $view.innerHTML=`<section class="card"><p class="empty">Lade Auswertung …</p></section>`;
+  const {runs,src}=await loadRuns();
+  if(state.view!=="stats")return;
+  const total=runs.length;
+  const by=k=>runs.filter(r=>r.kind===k).length;
+  const pct=x=>total?Math.round(x/total*100)+"%":"–";
+  const findings=count(runs.flatMap(r=>r.findings||[]));
+  const unresolved=count(runs.map(r=>r.unresolved||FLOW[r.end]?.reason).filter(Boolean));
+  const outcomes=count(runs.map(r=>r.kind!=="ok"?KIND_LABEL[r.kind]+" gerufen":!(r.findings||[]).length?"Alles war schon in Ordnung":r.techNote?"Selbst behoben, Beleuchtung offen":"Selbst behoben"));
+  const stations=STATIONS.map(s=>{const rs=runs.filter(r=>r.station===s);const top=count(rs.flatMap(r=>r.findings||[]))[0];
+    return {s,n:rs.length,bad:rs.filter(r=>r.kind!=="ok").length,top:top?top[0]:"–"}}).filter(x=>x.n);
+  const fmt=t=>new Date(t).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+  const col={ok:"var(--ok)",tech:"var(--bad)",dorian:"var(--warn)"};
+  $view.innerHTML=`
+  <div class="kpis">
+    <div class="kpi"><div class="n">${total}</div><div class="l">Prüfungen gesamt</div></div>
+    <div class="kpi"><div class="n">${pct(by("ok"))}</div><div class="l">Ohne Hilfe gelöst</div></div>
+    <div class="kpi"><div class="n">${by("tech")}</div><div class="l">Techniker gerufen</div></div>
+    <div class="kpi"><div class="n">${by("dorian")}</div><div class="l">An Dorian gemeldet</div></div>
+  </div>
+  <section class="card"><h2>Häufigste Ursachen</h2>${bars(findings,total)}
+    <p class="note">Gezählt wird nur, was jemand direkt gesehen hat oder was nachweislich geholfen hat. Prozent = Anteil aller Prüfungen.</p></section>
+  <section class="card"><h2>Ungelöst, Hilfe geholt</h2>${bars(unresolved,total,k=>k.startsWith("Docker")||k.startsWith("RFID")?"warn":"bad")}</section>
+  <section class="card"><h2>Wie endeten die Prüfungen?</h2>${bars(outcomes,total,k=>k.startsWith("Alles")||k.startsWith("Selbst")?"ok":k.startsWith("Dorian")?"warn":"bad")}</section>
+  <section class="card"><h2>Nach Station</h2>${stations.length?`<div class="tablewrap"><table><thead><tr><th>Station</th><th>Prüf.</th><th>Mit Hilfe</th><th>Häufigste Ursache</th></tr></thead><tbody>${stations.map(x=>`<tr><td>${x.s}</td><td class="num">${x.n}</td><td class="num">${x.bad}</td><td>${esc(x.top)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="empty">Noch keine Daten</p>`}</section>
+  <section class="card"><h2>Letzte Prüfungen</h2>${runs.length?`<div class="tablewrap"><table><thead><tr><th>Zeit</th><th>Station</th><th>Ergebnis</th></tr></thead><tbody>${runs.slice(0,15).map(r=>`<tr><td class="num">${fmt(r.ts)}</td><td>${esc(r.station)}</td><td><span class="dot" style="background:${col[r.kind]}"></span>${KIND_LABEL[r.kind]}${r.unresolved?` · ${esc(r.unresolved)}`:(r.findings||[]).length?` · ${esc(r.findings.join(", "))}`:""}</td></tr>`).join("")}</tbody></table></div>`:`<p class="empty">Sobald jemand eine Prüfung abschließt, erscheint sie hier.</p>`}</section>
+  <p class="note">${src==="shared"?"Daten aus allen gespeicherten Prüfungen.":sb?"Supabase gerade nicht erreichbar. Angezeigt werden nur Prüfungen von diesem Gerät.":"Noch keine Datenbank eingerichtet (config.js). Angezeigt werden nur Prüfungen von diesem Gerät."}</p>`;
+}
+
+if(state.view==="stats") setTab("stats"); else render();
+</script>
+
+</body>
+</html>
