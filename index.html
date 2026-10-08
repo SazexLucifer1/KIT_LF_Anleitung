@@ -82,6 +82,23 @@ select{font:500 18px var(--f-body);padding:12px;border-radius:10px;border:1px so
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:14px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
 .save{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;counter-reset:st}
+.log li{display:grid;grid-template-columns:2em 1fr auto;gap:4px 10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line);counter-increment:st;font-size:15px}
+.log li::before{content:counter(st);font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.log li .t{min-width:0}
+.log li.a .t{color:var(--muted)}
+.ans{font-family:var(--f-mono);font-size:12px;padding:2px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--line);white-space:nowrap;justify-self:end;max-width:11em;overflow:hidden;text-overflow:ellipsis}
+.ans.ja{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+.ans.nein{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:15px;margin:0}
+.meta dt{color:var(--muted)} .meta dd{margin:0;min-width:0}
+details.proto summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:8px}
+details.proto summary::after{content:"anzeigen";font:500 13px var(--f-body);color:var(--muted);text-decoration:underline}
+details.proto[open] summary::after{content:"ausblenden"}
+details.proto[open] summary{margin-bottom:10px}
+.btn.ghost{background:var(--panel);color:var(--ink);border-color:var(--line);min-height:48px;font-size:16px;padding:12px}
+.copied{font-family:var(--f-mono);font-size:12px;color:var(--ok)}
+
 .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .kpi .n{font-family:var(--f-display);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
@@ -296,13 +313,49 @@ function back(){
   const h=state.history.pop();state.node=h.id;render();
 }
 
+/* ---------- Prüfprotokoll: was wurde in welcher Reihenfolge gemacht ---------- */
+function protoSteps(path){ /* path: ["LP:Beide","FC:Ja",...] */
+  return path.map(p=>{const i=p.indexOf(":");const id=p.slice(0,i),ans=p.slice(i+1);const n=FLOW[id];if(!n)return null;
+    if(n.type==="q") return {kind:"q",text:n.text,ans};
+    if(n.type==="a") return {kind:"a",text:n.text,ans:"erledigt"};
+    return {kind:"n",text:n.text,ans:"gelesen"};}).filter(Boolean);
+}
+const fmtFull=t=>new Date(t).toLocaleString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+const fmtDur=s=>s==null?"–":s<60?s+" s":Math.round(s/60)+" min";
+function protoHTML(run){
+  const steps=protoSteps(run.path||[]);
+  const n=FLOW[run.end]||{};
+  return `<dl class="meta">
+      <dt>Station</dt><dd>${esc(run.station)}</dd>
+      <dt>Zeitpunkt</dt><dd>${esc(fmtFull(run.ts))}</dd>
+      <dt>Dauer</dt><dd>${fmtDur(run.durationSec)}</dd>
+      <dt>Ergebnis</dt><dd>${esc(n.title||run.end)}${run.unresolved?": "+esc(run.unresolved):""}</dd>
+      ${(run.findings||[]).length?`<dt>Ursachen</dt><dd>${esc(run.findings.join(", "))}</dd>`:""}
+    </dl>
+    <ol class="log">${steps.map(x=>`<li class="${x.kind}"><span class="t">${esc(x.text)}</span><span class="ans ${x.ans==="Ja"?"ja":x.ans==="Nein"?"nein":""}">${esc(x.ans)}</span></li>`).join("")}</ol>`;
+}
+function protoText(run){
+  const n=FLOW[run.end]||{};
+  const lines=[`Stations-Check – ${run.station}`,`${fmtFull(run.ts)} · Dauer ${fmtDur(run.durationSec)}`,
+    `Ergebnis: ${n.title||run.end}${run.unresolved?" – "+run.unresolved:""}`];
+  if((run.findings||[]).length) lines.push(`Ursachen: ${run.findings.join(", ")}`);
+  lines.push("","Bereits durchgeführt:");
+  protoSteps(run.path||[]).forEach((x,i)=>lines.push(`${i+1}. ${x.text} → ${x.ans}`));
+  return lines.join("\n");
+}
+async function copyText(txt,btn){
+  try{await navigator.clipboard.writeText(txt);btn.textContent="Kopiert";setTimeout(()=>btn.textContent="Protokoll kopieren",2000)}
+  catch(e){const ta=document.createElement("textarea");ta.value=txt;ta.style.position="absolute";ta.style.left="-9999px";document.body.appendChild(ta);ta.select();
+    try{document.execCommand("copy");btn.textContent="Kopiert"}catch(_){btn.textContent="Kopieren nicht möglich"}ta.remove();setTimeout(()=>btn.textContent="Protokoll kopieren",2000)}
+}
+
 async function finish(){
   const n=FLOW[state.node];
   const findings=computeFindings(state.history);
   const run={station:state.station,ts:Date.now(),end:state.node,kind:n.kind,
     techNote:state.history.some(h=>h.tech),findings,unresolved:n.reason||null,
     path:state.history.map(h=>h.id+":"+h.answer),durationSec:Math.round((Date.now()-state.started)/1000)};
-  state.saved="saving"; renderEnd(n);
+  state.lastRun=run; state.saved="saving"; renderEnd(n);
   state.saved=await saveRun(run); if(state.view==="check"&&FLOW[state.node]===n) renderEnd(n);
 }
 
@@ -324,19 +377,27 @@ function renderStart(){
 function renderEnd(n){
   const findings=computeFindings(state.history);
   const tech=state.history.some(h=>h.tech);
+  const run=state.lastRun&&state.lastRun.end===state.node?state.lastRun:{station:state.station,ts:Date.now(),end:state.node,findings,unresolved:n.reason||null,path:state.history.map(h=>h.id+":"+h.answer),durationSec:Math.round((Date.now()-state.started)/1000)};
+  const help=n.kind!=="ok";
   const savedTxt=state.saved==="saving"?"Wird gespeichert …":state.saved==="shared"?"Ergebnis gespeichert":state.saved==="local"?"Ergebnis nur auf diesem Gerät gespeichert":state.saved==="queued"?"Kein Netz: Ergebnis wird beim nächsten Öffnen nachgereicht":"";
   $view.innerHTML=`<section class="card result ${n.kind}">
-    <span class="eyebrow">${state.station} · Ergebnis</span>
+    <span class="eyebrow">${esc(state.station)} · Ergebnis</span>
     <h1>${esc(n.title)}</h1>
     <p class="hint" style="color:var(--ink)">${esc(n.text)}</p>
+    ${help?`<p class="hint" style="color:var(--ink)">Zeig ${n.kind==="dorian"?"Dorian":"dem Techniker"} das Prüfprotokoll unten oder schick es ihm. Dann muss niemand die Schritte wiederholen.</p>`:""}
     ${tech&&n.kind==="ok"?`<p class="hint" style="color:var(--ink)"><b>Offen:</b> Bitte trotzdem einen Techniker wegen der Beleuchtung informieren.</p>`:""}
     ${findings.length?`<div><span class="eyebrow">Gefundene Ursachen</span><div class="chips" style="margin-top:6px">${findings.map(f=>`<span class="chip">${esc(f)}</span>`).join("")}</div></div>`:""}
     <span class="save">${savedTxt}</span>
   </section>
+  <section class="card">
+    <details class="proto" ${help?"open":""}><summary><h2>Prüfprotokoll</h2></summary>${protoHTML(run)}</details>
+    <button class="btn ghost" id="copy">Protokoll kopieren</button>
+  </section>
   <button class="btn primary" id="again">Neue Prüfung</button>
   <button class="link" id="back">Letzte Antwort ändern</button>`;
-  document.getElementById("again").onclick=()=>{state.node=null;state.history=[];render()};
-  document.getElementById("back").onclick=back;
+  document.getElementById("copy").onclick=e=>copyText(protoText(run),e.currentTarget);
+  document.getElementById("again").onclick=()=>{state.node=null;state.history=[];state.lastRun=null;render()};
+  document.getElementById("back").onclick=()=>{state.lastRun=null;back()};
 }
 
 /* ---------- Auswertung ---------- */
@@ -370,7 +431,8 @@ async function renderStats(){
   <section class="card"><h2>Ungelöst, Hilfe geholt</h2>${bars(unresolved,total,k=>k.startsWith("Docker")||k.startsWith("RFID")?"warn":"bad")}</section>
   <section class="card"><h2>Wie endeten die Prüfungen?</h2>${bars(outcomes,total,k=>k.startsWith("Alles")||k.startsWith("Selbst")?"ok":k.startsWith("Dorian")?"warn":"bad")}</section>
   <section class="card"><h2>Nach Station</h2>${stations.length?`<div class="tablewrap"><table><thead><tr><th>Station</th><th>Prüf.</th><th>Mit Hilfe</th><th>Häufigste Ursache</th></tr></thead><tbody>${stations.map(x=>`<tr><td>${x.s}</td><td class="num">${x.n}</td><td class="num">${x.bad}</td><td>${esc(x.top)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="empty">Noch keine Daten</p>`}</section>
-  <section class="card"><h2>Letzte Prüfungen</h2>${runs.length?`<div class="tablewrap"><table><thead><tr><th>Zeit</th><th>Station</th><th>Ergebnis</th></tr></thead><tbody>${runs.slice(0,15).map(r=>`<tr><td class="num">${fmt(r.ts)}</td><td>${esc(r.station)}</td><td><span class="dot" style="background:${col[r.kind]}"></span>${KIND_LABEL[r.kind]}${r.unresolved?` · ${esc(r.unresolved)}`:(r.findings||[]).length?` · ${esc(r.findings.join(", "))}`:""}</td></tr>`).join("")}</tbody></table></div>`:`<p class="empty">Sobald jemand eine Prüfung abschließt, erscheint sie hier.</p>`}</section>
+  <section class="card"><h2>Letzte Prüfungen</h2>${runs.length?`<div class="bars">${runs.slice(0,20).map(r=>`<details class="proto"><summary><span><span class="dot" style="background:${col[r.kind]}"></span>${esc(fmt(r.ts))} · ${esc(r.station)} · ${KIND_LABEL[r.kind]}${r.unresolved?` · ${esc(r.unresolved)}`:""}</span></summary>${protoHTML(r)}</details>`).join("")}</div>`:`<p class="empty">Sobald jemand eine Prüfung abschließt, erscheint sie hier.</p>`}
+    <p class="note">Antippen zeigt das Prüfprotokoll mit allen Schritten.</p></section>
   <p class="note">${src==="shared"?"Daten aus allen gespeicherten Prüfungen.":sb?"Supabase gerade nicht erreichbar. Angezeigt werden nur Prüfungen von diesem Gerät.":"Noch keine Datenbank eingerichtet (config.js). Angezeigt werden nur Prüfungen von diesem Gerät."}</p>`;
 }
 
