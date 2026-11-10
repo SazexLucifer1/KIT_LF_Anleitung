@@ -90,6 +90,7 @@ select{font:500 18px var(--f-body);padding:12px;border-radius:10px;border:1px so
 .result.ok{border-color:var(--ok);background:var(--ok-soft)}
 .result.tech{border-color:var(--bad);background:var(--bad-soft)}
 .result.dorian{border-color:var(--warn);background:var(--warn-soft)}
+.result.nacht{border-color:var(--muted);background:var(--bg)}
 .result h1{font-size:28px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{font-size:14px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line)}
@@ -167,6 +168,10 @@ td.num{font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:13p
    noAgain = wird die Frage im selben Durchlauf ein ZWEITES Mal mit "Nein" beantwortet, geht es hierhin (verhindert Endlosschleifen) */
 const SECTIONS=["Beleuchtung","Stromversorgung","Monitor & PC","Docker & MES","MES-Nutzung"];
 const FLOW={
+ ZEIT:{s:0,sec:"Uhrzeit prüfen",type:"q",text:"Wie spät ist es gerade?",hint:"Die Lernfabrik schaltet die Stationen jeden Tag von 19 Uhr bis 8 Uhr morgens automatisch ab, um Strom zu sparen. In dieser Zeit lassen sich die Stationen nicht bedienen. Laut deinem Handy ist es gerade {UHRZEIT} Uhr.",opts:[
+   {l:"Zwischen 8 und 19 Uhr",to:"ZW"},
+   {l:"Zwischen 19 und 8 Uhr (abends, nachts, früh)",to:"NACHT",obs:"Nachtabschaltung (19–8 Uhr)"}]},
+ ZW:{type:"switch",by:"mode",cases:{check:"GOAL",mes:"MG"}},
  GOAL:{s:0,sec:"Ziel festlegen",type:"q",text:"Wofür soll die Station laufen?",hint:"Netzbetrieb: für Führungen oder Schulungen, bei denen die Station fest an ihrem Platz im Layout steht. Batteriebetrieb: für Schulungen, bei denen die Stationen frei im Raum verteilt werden.",opts:[
    {l:"Netzbetrieb (Führung / Schulung im Layout)",to:"LP"},
    {l:"Batteriebetrieb (Stationen frei verteilt)",to:"LP"}]},
@@ -320,6 +325,7 @@ const FLOW={
  MG_K:{type:"end",kind:"ok",title:"Kommissionierplatz bereit",text:"Handschuh und Kommissionierliste sind bereit."},
  MG_KU:{type:"end",kind:"ok",title:"Kunden-Platz bereit",text:"Bestellungen können aufgegeben werden."},
  MG_RFID:{type:"end",kind:"tech",title:"Station prüfen",reason:"RFID-Statusanzeige bei der Schulungsvorbereitung nicht grün",text:"Mindestens eine Station erkennt das Polgehäuse nicht. Bitte dort den Stations-Check machen."},
+ NACHT:{type:"end",kind:"ok",cls:"nacht",title:"Nachtabschaltung",text:"Von 19 Uhr bis 8 Uhr morgens sind die Stationen automatisch abgeschaltet, um Strom zu sparen. Sie lassen sich in dieser Zeit nicht bedienen. Bitte ab 8 Uhr nochmal versuchen."},
  MES:{type:"end",kind:"ok",title:"Station voll einsatzbereit",text:"Alles läuft: Docker, RFID-Reader und MES sind bereit."},
  TM3:{type:"end",kind:"tech",title:"Techniker rufen",reason:"Station bekommt keinen Strom",text:"Die Station bekommt keinen Strom. Bitte Fabian Hofsäß oder die Elektrowerkstatt informieren."},
  TM4:{type:"end",kind:"tech",title:"Techniker rufen",reason:"Station lädt nicht am Netz",text:"Die Station lädt nicht am Netz. Bitte Fabian Hofsäß oder die Elektrowerkstatt informieren."},
@@ -349,7 +355,7 @@ function computeFindings(hist){
   }
   return [...new Set(found)];
 }
-const START="GOAL";
+const START="ZEIT";
 const CFG=window.CONFIG||{};
 const STATIONS=(CFG.STATIONS&&CFG.STATIONS.length)?CFG.STATIONS:["Station 1"];
 /* Fotos: Datei in den Ordner images/ legen, Name = Platzhalter-Text klein, ohne Umlaute.
@@ -469,10 +475,10 @@ function trainingOf(hist){const h=hist.find(x=>x.id==="USE");if(!h)return"none";
 /* Platzhalter in Texten: {PW} Passwort, {MES} MES-Adresse, {STATION} Station, {MESNAME} Name der Station im MES */
 /* Links im Text: eigener Kasten, der auf dem Handy umbricht statt aus der Karte zu ragen */
 function rich(t){return esc(t).replace(/(https?:\/\/[^\s<]+?)([.,;:)]?(?=\s|$|<))/g,'<span class="link">$1</span>$2')}
-function fill(t){if(!t)return t;const st=state.station||"";return String(t).replaceAll("{PW}",CFG.PASSWORT||"(Passwort beim Team)").replaceAll("{MES}",CFG.MES_ADRESSE||"").replaceAll("{STATION}",st).replaceAll("{MESNAME}",(CFG.MES_NAMEN||{})[st]||st)}
+function fill(t){if(!t)return t;const st=state.station||"";return String(t).replaceAll("{PW}",CFG.PASSWORT||"(Passwort beim Team)").replaceAll("{MES}",CFG.MES_ADRESSE||"").replaceAll("{STATION}",st).replaceAll("{MESNAME}",(CFG.MES_NAMEN||{})[st]||st).replaceAll("{UHRZEIT}",new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}))}
 function usageOf(hist){const h=hist.find(x=>x.id==="USE");return h?h.answer:""}
 function goalMode(hist){const h=hist.find(x=>x.id==="GOAL");return h&&h.answer.startsWith("Batterie")?"batterie":"netz"}
-function resolve(id){let n=FLOW[id],g=0;while(n&&n.type==="switch"&&g++<5){id=n.cases[n.by==="docker"?dockerMode(state.station):n.by==="os"?((CFG.LINUX_STATIONS||[]).includes(state.station)?"linux":"windows"):n.by==="goal"?goalMode(state.history):n.by==="mgmode"?mgMode(state.history):n.by==="training"?trainingOf(state.history):"unknown"];n=FLOW[id]}return id}
+function resolve(id){let n=FLOW[id],g=0;while(n&&n.type==="switch"&&g++<5){id=n.cases[n.by==="docker"?dockerMode(state.station):n.by==="os"?((CFG.LINUX_STATIONS||[]).includes(state.station)?"linux":"windows"):n.by==="goal"?goalMode(state.history):n.by==="mgmode"?mgMode(state.history):n.by==="training"?trainingOf(state.history):n.by==="mode"?MODE:"unknown"];n=FLOW[id]}return id}
 function go(to,answer,x){
   state.history.push({id:state.node,answer,obs:x.obs||null,pos:x.pos===undefined?null:x.pos,tech:!!x.tech});
   state.node=resolve(to); render(); if(FLOW[state.node].type==="end") finish(); window.scrollTo(0,0);
@@ -553,7 +559,7 @@ function renderStart(){
   const ch=document.getElementById("change");
   if(ch) ch.onclick=()=>{state.pickStation=true;renderStart();document.getElementById("st").focus()};
   document.getElementById("go").onclick=()=>{if(sel){state.station=sel.value;lsSet(LS_ST,state.station)}
-    state.node=MODE==="mes"?"MG":START;state.history=[];state.started=Date.now();state.saved=null;render();};
+    state.node=START;state.history=[];state.started=Date.now();state.saved=null;render();};
 }
 
 function renderEnd(n){
@@ -562,7 +568,7 @@ function renderEnd(n){
   const run=state.lastRun&&state.lastRun.end===state.node?state.lastRun:{station:state.station,ts:Date.now(),end:state.node,findings,unresolved:n.reason||null,path:state.history.map(h=>h.id+":"+h.answer),durationSec:Math.round((Date.now()-state.started)/1000)};
   const help=n.kind!=="ok";
   const savedTxt=state.saved==="saving"?"Wird gespeichert …":state.saved==="shared"?"Ergebnis gespeichert":state.saved==="local"?"Ergebnis nur auf diesem Gerät gespeichert":state.saved==="queued"?"Kein Netz: Ergebnis wird beim nächsten Öffnen nachgereicht":"";
-  $view.innerHTML=`<section class="card result ${n.kind}">
+  $view.innerHTML=`<section class="card result ${n.cls||n.kind}">
     <span class="eyebrow">${esc(state.station)} · Ergebnis</span>
     <h1>${esc(n.title)}</h1>
     <p class="hint" style="color:var(--ink)">${rich(fill(n.text))}</p>
@@ -595,11 +601,17 @@ async function renderStats(){
   const {runs,src}=await loadRuns();
   if(state.view!=="stats")return;
   const total=runs.length;
-  const by=k=>runs.filter(r=>r.kind===k).length;
+  /* Nachtabschaltung zählt nicht als "ohne Hilfe gelöst": die Station war einfach aus */
+  const isNacht=r=>r.end==="NACHT";
+  const by=k=>runs.filter(r=>r.kind===k&&!isNacht(r)).length;
+  const nacht=runs.filter(isNacht).length;
+  /* Startzeit laut Handy: Ende minus Dauer. Zeigt auch, wer nachts geprüft, aber "8 bis 19 Uhr" gewählt hat */
+  const nachtsZeit=r=>{const h=new Date(r.ts-(r.durationSec||0)*1000).getHours();return h>=19||h<8};
+  const nachtsGestartet=runs.filter(nachtsZeit).length, nachtsUebersehen=runs.filter(r=>nachtsZeit(r)&&!isNacht(r)).length;
   const pct=x=>total?Math.round(x/total*100)+"%":"–";
   const findings=count(runs.flatMap(r=>r.findings||[]));
   const unresolved=count(runs.map(r=>r.unresolved||FLOW[r.end]?.reason).filter(Boolean));
-  const outcomes=count(runs.map(r=>r.kind!=="ok"?KIND_LABEL[r.kind]+" gerufen":!(r.findings||[]).length?"Alles war schon in Ordnung":r.techNote?"Selbst behoben, Beleuchtung offen":"Selbst behoben"));
+  const outcomes=count(runs.map(r=>isNacht(r)?"Nachtabschaltung, Station war aus":r.kind!=="ok"?KIND_LABEL[r.kind]+" gerufen":!(r.findings||[]).length?"Alles war schon in Ordnung":r.techNote?"Selbst behoben, Beleuchtung offen":"Selbst behoben"));
   const stations=STATIONS.map(s=>{const rs=runs.filter(r=>r.station===s);const top=count(rs.flatMap(r=>r.findings||[]))[0];
     return {s,n:rs.length,bad:rs.filter(r=>r.kind!=="ok").length,top:top?top[0]:"–"}}).filter(x=>x.n);
   const fmt=t=>new Date(t).toLocaleString("de-DE",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
@@ -607,7 +619,7 @@ async function renderStats(){
   $view.innerHTML=`
   <div class="kpis">
     <div class="kpi"><div class="n">${total}</div><div class="l">Prüfungen gesamt</div></div>
-    <div class="kpi"><div class="n">${pct(by("ok"))}</div><div class="l">Ohne Hilfe gelöst</div></div>
+    <div class="kpi"><div class="n">${total-nacht?Math.round(by("ok")/(total-nacht)*100)+"%":"–"}</div><div class="l">Ohne Hilfe gelöst</div></div>
     <div class="kpi"><div class="n">${by("tech")}</div><div class="l">Techniker gerufen</div></div>
     <div class="kpi"><div class="n">${by("dorian")}</div><div class="l">An Dorian gemeldet</div></div>
   </div>
@@ -615,9 +627,15 @@ async function renderStats(){
     <p class="note">Gezählt wird nur, was jemand direkt gesehen hat oder was nachweislich geholfen hat. Prozent = Anteil aller Prüfungen.</p></section>
   <section class="card"><h2>Ungelöst, Hilfe geholt</h2>${bars(unresolved,total,k=>k.startsWith("Docker")||k.startsWith("RFID")?"warn":"bad")}</section>
   <section class="card"><h2>Wofür genutzt</h2>${bars(count(runs.map(r=>(r.path||[]).find(x=>x.startsWith("USE:"))).filter(Boolean).map(x=>x.slice(4).replace("Schulung: ",""))),total)}</section>
-  <section class="card"><h2>Wie endeten die Prüfungen?</h2>${bars(outcomes,total,k=>k.startsWith("Alles")||k.startsWith("Selbst")?"ok":k.startsWith("Dorian")?"warn":"bad")}</section>
+  <section class="card"><h2>Wie endeten die Prüfungen?</h2>${bars(outcomes,total,k=>k.startsWith("Alles")||k.startsWith("Selbst")?"ok":k.startsWith("Dorian")||k.startsWith("Nacht")?"warn":"bad")}</section>
+  <section class="card"><h2>Nachtabschaltung (19–8 Uhr)</h2>${total?`<div class="bars">
+    <div class="bar warn"><span class="t">Abgebrochen wegen Nachtabschaltung</span><span class="c">${nacht} · ${pct(nacht)}</span><div class="track"><div class="fill" style="width:${Math.max(3,nacht/total*100)}%"></div></div></div>
+    <div class="bar warn"><span class="t">Laut Handy-Uhr zwischen 19 und 8 Uhr gestartet</span><span class="c">${nachtsGestartet} · ${pct(nachtsGestartet)}</span><div class="track"><div class="fill" style="width:${Math.max(3,nachtsGestartet/total*100)}%"></div></div></div>
+    <div class="bar bad"><span class="t">Davon trotzdem weitergeprüft</span><span class="c">${nachtsUebersehen} · ${pct(nachtsUebersehen)}</span><div class="track"><div class="fill" style="width:${Math.max(3,nachtsUebersehen/total*100)}%"></div></div></div>
+    </div>`:`<p class="empty">Noch keine Daten</p>`}
+    <p class="note">Prozent = Anteil aller Prüfungen. „Trotzdem weitergeprüft“ heißt: Die Handy-Uhr zeigte die Abschaltzeit, gewählt wurde aber „8 bis 19 Uhr“.</p></section>
   <section class="card"><h2>Nach Station</h2>${stations.length?`<div class="tablewrap"><table><thead><tr><th>Station</th><th>Prüf.</th><th>Mit Hilfe</th><th>Häufigste Ursache</th></tr></thead><tbody>${stations.map(x=>`<tr><td>${x.s}</td><td class="num">${x.n}</td><td class="num">${x.bad}</td><td>${esc(x.top)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="empty">Noch keine Daten</p>`}</section>
-  <section class="card"><h2>Letzte Prüfungen</h2>${runs.length?`<div class="bars">${runs.slice(0,20).map(r=>`<details class="proto"><summary><span><span class="dot" style="background:${col[r.kind]}"></span>${esc(fmt(r.ts))} · ${esc(r.station)} · ${KIND_LABEL[r.kind]}${r.unresolved?` · ${esc(r.unresolved)}`:""}</span></summary>${protoHTML(r)}</details>`).join("")}</div>`:`<p class="empty">Sobald jemand eine Prüfung abschließt, erscheint sie hier.</p>`}
+  <section class="card"><h2>Letzte Prüfungen</h2>${runs.length?`<div class="bars">${runs.slice(0,20).map(r=>`<details class="proto"><summary><span><span class="dot" style="background:${isNacht(r)?"var(--muted)":col[r.kind]}"></span>${esc(fmt(r.ts))} · ${esc(r.station)} · ${isNacht(r)?"Nachtabschaltung":KIND_LABEL[r.kind]}${r.unresolved?` · ${esc(r.unresolved)}`:""}</span></summary>${protoHTML(r)}</details>`).join("")}</div>`:`<p class="empty">Sobald jemand eine Prüfung abschließt, erscheint sie hier.</p>`}
     <p class="note">Antippen zeigt das Prüfprotokoll mit allen Schritten.</p></section>
   <p class="note">${src==="shared"?"Daten aus allen gespeicherten Prüfungen.":sb?"Supabase gerade nicht erreichbar. Angezeigt werden nur Prüfungen von diesem Gerät.":"Noch keine Datenbank eingerichtet (config.js). Angezeigt werden nur Prüfungen von diesem Gerät."}</p>`;
 }

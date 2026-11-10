@@ -34,6 +34,7 @@ Gezählt wird nur, was sicher ist:
 
 - **Direkt gesehen:** z. B. „Ist der NUC-PC an?" → Nein ergibt „NUC-PC war aus".
 - **Nachweislich geholfen:** Eine Handlung (z. B. HDMI-Kabel einstecken) zählt nur, wenn die nächste Kontrollfrage danach positiv ist. Sonst wird sie verworfen.
+- **Nachtabschaltung:** Die erste Frage ist die Uhrzeit. Von 19 bis 8 Uhr sind die Stationen automatisch aus. Die Auswertung zeigt, wie oft deshalb abgebrochen wurde und wie oft laut Handy-Uhr nachts trotzdem weitergeprüft wurde.
 - **Ungelöst:** Endet die Prüfung beim Techniker oder bei Dorian, wird der Grund separat gezählt.
 
 Den Ablauf selbst ändert man in `index.html` im Block `const FLOW={ ... }`.

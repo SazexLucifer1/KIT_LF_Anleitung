@@ -3,7 +3,9 @@
 Automatisch aus `index.html` (Block `FLOW`) erzeugt. Grün = einsatzbereit, rot = Techniker, orange = Dorian.
 Gestrichelte Pfeile: „Nein (2. Mal)" = dieselbe Frage zum zweiten Mal mit Nein beantwortet; „Nein, Strom schon geprüft" = der Abschnitt Stromversorgung wurde in diesem Durchlauf schon durchlaufen.
 
-Zu Beginn wird das Ziel gewählt (Netz- oder Batteriebetrieb); die Stromversorgung prüft danach automatisch den passenden Betrieb.
+Ganz am Anfang wird nach der Uhrzeit gefragt: Von 19 bis 8 Uhr sind die Stationen automatisch abgeschaltet (Strom sparen). Wer „zwischen 19 und 8 Uhr“ wählt, landet direkt beim Ergebnis „Nachtabschaltung“; das wird gezählt, damit wir sehen, wie oft das passiert. Die Frage kommt auch im MES-Guide.
+
+Danach wird das Ziel gewählt (Netz- oder Batteriebetrieb); die Stromversorgung prüft danach automatisch den passenden Betrieb.
 
 Nach Strom, PC und Docker wird gefragt, wofür das MES genutzt wird: Besuchstermin (MES im Vollbild) oder eine der fünf Schulungen. Die Schulungs-Abläufe sind als Platzhalter angelegt und werden noch ausgearbeitet.
 
@@ -19,12 +21,13 @@ Aus dem Stations-Check führen die Schulungen in denselben Ablauf und danach zum
 
 ## Geprüft
 
-- Alle 131 Schritte erreichbar, keine Sackgassen.
-- Alle 19 Ergebnisse erreichbar.
+- Alle 132 Schritte erreichbar, keine Sackgassen.
+- Alle 20 Ergebnisse erreichbar.
 - Keine Endlosschleifen (Zustandsanalyse über alle 5.655 möglichen Zustände).
 
 ```mermaid
 flowchart TD
+ZW{{"Stations-Check oder MES-Guide"}}
 DW{{"Docker-Verhalten der Station"}}
 OSR{{"Linux oder Windows?"}}
 MG{"MES-Guide: Was vorbereiten?"}
@@ -33,6 +36,7 @@ GTR{{"Gewählte Schulung"}}
 GOAL{"Ziel: Netz- oder Batteriebetrieb?"}
 BM{{"Ziel vom Anfang"}}
 subgraph S0["1 – Beleuchtung"]
+  ZEIT{"Wie spät ist es gerade?"}
   GOAL{"Wofür soll die Station laufen?"}
   LP{"Welche LED-Panels leuchten?"}
   FC{"Leuchtet das vordere Panel in WBK-Grün?"}
@@ -155,6 +159,7 @@ MG_W(["Werker-Platz bereit"])
 MG_K(["Kommissionierplatz bereit"])
 MG_KU(["Kunden-Platz bereit"])
 MG_RFID(["Station prüfen: RFID-Statusanzeige bei der Schulungsvorbereitung nicht grün"])
+NACHT(["Nachtabschaltung (19–8 Uhr)"])
 MES(["Station voll einsatzbereit"])
 TM3(["Techniker rufen: Station bekommt keinen Strom"])
 TM4(["Techniker rufen: Station lädt nicht am Netz"])
@@ -168,6 +173,10 @@ DOR4(["Dorian melden: IO-Link-Kabel: richtige Position unklar"])
 DOR5(["Dorian melden: Linux-Station: Pol-Topf wird nicht erkannt"])
 DOR1(["Dorian melden: Docker läuft auch nach PC-Neustart nicht"])
 DOR2(["Dorian melden: RFID reagiert trotz gesteckter Kabel nicht"])
+ZEIT -->|"Zwischen 8 und 19 Uhr"| ZW
+ZEIT -->|"Zwischen 19 und 8 Uhr"| NACHT
+ZW -.->|"Stations-Check"| GOAL
+ZW -.->|"MES-Guide"| MG
 GOAL -->|"Netzbetrieb (Führung / Schulung im Layout)"| LP
 GOAL -->|"Batteriebetrieb (Stationen frei verteilt)"| LP
 LP -->|"Beide"| FC
@@ -361,7 +370,9 @@ KU2 --> MG_KU
 classDef ok fill:#e1f1e0,stroke:#2f7d32,color:#173404
 classDef tech fill:#f8e0dc,stroke:#c0392b,color:#501313
 classDef dorian fill:#fbecd3,stroke:#b26a00,color:#412402
+classDef nacht fill:#e6e9e7,stroke:#5d6a61,color:#18201b
 class MG_OK,MG_DEMO,MG_W,MG_K,MG_KU,MES ok
 class MG_RFID,TM3,TM4,TM5,TM6,TM7,TM8,TM9 tech
 class DOR3,DOR4,DOR5,DOR1,DOR2 dorian
+class NACHT nacht
 ```
